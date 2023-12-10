@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/apache/pulsar-client-go/pulsar"
-
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/matryer/is"
 )
@@ -60,7 +59,6 @@ func TestSource_Integration_RestartPartial(t *testing.T) {
 	// from last acked record
 	recs2 := GeneratePulsarRecords(4, 6)
 	Produce(t, cfg, recs2)
-
 	var wantRecs []pulsar.ProducerMessage
 	wantRecs = append(wantRecs, recs1[1:]...)
 	wantRecs = append(wantRecs, recs2...)
