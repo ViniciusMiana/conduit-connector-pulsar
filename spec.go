@@ -1,4 +1,4 @@
-package connectorname
+package pulsar
 
 import (
 	sdk "github.com/conduitio/conduit-connector-sdk"
@@ -11,10 +11,10 @@ var version = "(devel)"
 // Specification returns the connector's specification.
 func Specification() sdk.Specification {
 	return sdk.Specification{
-		Name:        "connectorname",
-		Summary:     "<describe your connector>",
-		Description: "<describe your connector in detail>",
+		Name:        "pulsar",
+		Summary:     "A Pulsar source and destination plugin for Conduit, written in Go.",
+		Description: "A Pulsar source and destination plugin for Conduit, written in Go.",
 		Version:     version,
-		Author:      "<your name>",
+		Author:      "Vinicius Miana",
 	}
 }

@@ -3,10 +3,9 @@
 VERSION=$(shell git describe --tags --dirty --always)
 
 build:
-	go build -ldflags "-X 'github.com/conduitio/conduit-connector-connectorname.version=${VERSION}'" -o conduit-connector-connectorname cmd/connector/main.go
+	go build -ldflags "-X 'github.com/ViniciusMiana/conduit-connector-pulsar.version=${VERSION}'" -o conduit-connector-pulsar cmd/connector/main.go
 
-test:
-	go test $(GOTEST_FLAGS) -race ./...
+test: test-integration
 
 test-integration:
 	# run required docker containers, execute integration tests, stop containers after tests
@@ -20,3 +19,6 @@ generate:
 
 install-paramgen:
 	go install github.com/conduitio/conduit-connector-sdk/cmd/paramgen@latest
+
+lint:
+	golangci-lint run

@@ -1,11 +1,10 @@
 package main
 
 import (
+	pulsar "github.com/ViniciusMiana/conduit-connector-pulsar"
 	sdk "github.com/conduitio/conduit-connector-sdk"
-
-	connectorname "github.com/conduitio/conduit-connector-connectorname"
 )
 
 func main() {
-	sdk.Serve(connectorname.Connector)
+	sdk.Serve(pulsar.Connector)
 }

@@ -1,10 +1,14 @@
-package connectorname
+package pulsar
 
 //go:generate paramgen -output=paramgen_src.go SourceConfig
 
 import (
 	"context"
 	"fmt"
+	"time"
+
+	"github.com/apache/pulsar-client-go/pulsar"
+	"github.com/google/uuid"
 
 	sdk "github.com/conduitio/conduit-connector-sdk"
 )
@@ -14,13 +18,14 @@ type Source struct {
 
 	config           SourceConfig
 	lastPositionRead sdk.Position //nolint:unused // this is just an example
+
+	client pulsar.Client
+	reader pulsar.Consumer
 }
 
 type SourceConfig struct {
 	// Config includes parameters that are the same in the source and destination.
 	Config
-	// SourceConfigParam is named foo and must be provided by the user.
-	SourceConfigParam string `json:"foo" validate:"required"`
 }
 
 func NewSource() sdk.Source {
@@ -59,6 +64,24 @@ func (s *Source) Open(ctx context.Context, pos sdk.Position) error {
 	// last record that was successfully processed, Source should therefore
 	// start producing records after this position. The context passed to Open
 	// will be cancelled once the plugin receives a stop signal from Conduit.
+	client, err := pulsar.NewClient(pulsar.ClientOptions{URL: s.config.URL})
+	if err != nil {
+		return err
+	}
+	s.client = client
+	reader, err := client.Subscribe(pulsar.ConsumerOptions{
+		Topic:               s.config.Topic,
+		SubscriptionName:    uuid.NewString(),
+		NackRedeliveryDelay: 2 * time.Second,
+		Type:                pulsar.Shared,
+		AckGroupingOptions: &pulsar.AckGroupingOptions{
+			MaxSize: 100,
+			MaxTime: 10,
+		},
+	})
+	if err == nil {
+		s.reader = reader
+	}
 	return nil
 }
 
@@ -77,7 +100,17 @@ func (s *Source) Read(ctx context.Context) (sdk.Record, error) {
 	// After Read returns an error the function won't be called again (except if
 	// the error is ErrBackoffRetry, as mentioned above).
 	// Read can be called concurrently with Ack.
-	return sdk.Record{}, nil
+	msg, err := s.reader.Receive(ctx)
+	if err != nil {
+		return sdk.Record{}, err
+	}
+	sdkMsg := sdk.Util.Source.NewRecordCreate(
+		msg.ID().Serialize(),
+		nil,
+		sdk.RawData(msg.Key()),
+		sdk.RawData(msg.Payload()),
+	)
+	return sdkMsg, nil
 }
 
 func (s *Source) Ack(ctx context.Context, position sdk.Position) error {
@@ -87,12 +120,24 @@ func (s *Source) Ack(ctx context.Context, position sdk.Position) error {
 	// outstanding acks that need to be delivered. When Teardown is called it is
 	// guaranteed there won't be any more calls to Ack.
 	// Ack can be called concurrently with Read.
-	return nil
+	// s.reader.AckID(position)
+	mid, err := pulsar.DeserializeMessageID(position)
+	if err != nil {
+		return err
+	}
+	return s.reader.AckID(mid)
 }
 
 func (s *Source) Teardown(ctx context.Context) error {
 	// Teardown signals to the plugin that there will be no more calls to any
 	// other function. After Teardown returns, the plugin should be ready for a
 	// graceful shutdown.
+	if s.reader != nil {
+		s.reader.Close()
+	}
+	if s.client != nil {
+		s.client.Close()
+	}
+
 	return nil
 }
